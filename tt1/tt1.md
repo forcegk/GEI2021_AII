@@ -34,12 +34,12 @@ Comenzaremos con la creación de la máquina virtual e instalación en la misma 
     - Cargamos la ISO `pfSense-CE-2.5.1-RELEASE-amd64.iso`
   - Red
     - Adaptador 1
-      - Habilitar adaptador de red *✓*
+      - Habilitar adaptador de red *[x]*
       - Conectado a *NAT*
       - Avanzadas
         - Tipo de adaptador *Intel PRO/1000 MT Desktop (82540EM)*
     - Adaptador 2
-      - Habilitar adaptador de red *✓*
+      - Habilitar adaptador de red *[x]*
       - Conectado a *Red interna*
       - Avanzadas
         - Tipo de adaptador *Intel PRO/1000 MT Desktop (82540EM)*
@@ -112,7 +112,7 @@ Para configurar pfSense necesitaremos acceder desde LAN al servidor, por lo que 
     - Cargamos la ISO `archlinux-2021.04.01-x86_64.iso`
   - Red
     - Adaptador 1
-      - Habilitar adaptador de red *✓*
+      - Habilitar adaptador de red *[x]*
       - Conectado a *Red interna*
       - Avanzadas
         - Tipo de adaptador *Intel PRO/1000 MT Desktop (82540EM)*
@@ -216,3 +216,58 @@ No nos hemos dado cuenta, pero realizando esta instalación ya hemos probado que
 Esto lo podemos probar de varias maneras, como haciendo ping a `gnu.org`, mirando la IP, puerta de enlace, etc, como se muestra en la siguiente imagen:
 
 ![Configuración básica de red con Arch Linux](./img/arch_test_net.png)
+
+#### Exportar pcBase-arch
+Seleccionamos la máquina `pc1-arch` y procedemos tal que:
+- Archivo
+  - Exportar servicio virtualizado *(CTRL+E)*
+    - Formato *Open Virtualization Format 2.0*
+    - Política de direcciones MAC *Quitar todas las direcciones MAC*
+    - Nombre *pcBase-arch*
+  - *Exportar*
+
+Recordemos que a pesar de ser este el sistema base, lo creamos a partir de pc1, y por tanto hemos de editar `/etc/hostname` y `/etc/hosts` para otras copias del mismo. 
+
+### Importar srv1-arch
+Ahora vamos a importar el servidor, donde hostearemos el servidor LDAP. Para ello:
+- Archivo
+  - Importar servicio virtualizado *(CTRL+I)*
+    - Modo experto
+    - Fuente: *seleccionamos la .ova que hemos guardado previamente*
+    - Carpeta base de la máquina *como prefiramos, pero de nuevo, recomendable SSD*
+    - Política de dirección MAC *Generar nuevas direcciones MAC*
+    - Importar discos como VDI *[  ]*
+    - *Importar*
+- Seleccionamos el nuevo servicio importado, y le cambiamos el nombre de *pcBase-arch* a *srv1-arch*
+
+Iniciamos *srv1-arch*, e iniciamos sesión con `pc:pc`. Tras eso editamos los archivos relacionados con el hostname con
+```bash
+sudo sed -i 's/pc1-arch/srv1-arch/g' /etc/hostname
+sudo sed -i 's/pc1-arch/srv1-arch/g' /etc/hosts
+```
+
+Y tras eso reiniciamos (por ejemplo con `sudo reboot`).
+
+Ahora nos ocurre un error muy extraño, y es que ambas máquinas tienen la dirección 192.168.1.105, lo cual causa conflictos, así que por el momento apagaremos el servidor, mientras no encontramos una solución.
+
+### Instalar un entorno de escritorio en pc1-arch
+Para instalar un entorno de escritorio en Arch Linux es realmente sencillo, únicamente debemos tener acceso a internet y ejecutar el siguiente comando, pulsando \<ENTER\> ante cualquier diálogo (acepta por defecto).
+```bash
+sudo pacman -S lxqt papirus-icon-theme sddm virtualbox-guest-utils noto-fonts
+sudo systemctl enable vboxservice.service sddm
+sudo reboot
+```
+
+Si vemos que la velocidad de descargar es muy baja, podemos ejecutar
+```bash
+sudo pacman -S reflector
+sudo reflector --verbose --latest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+```
+
+En Arch Linux hay que configurar las cosas manualmente, así que tenemos que habilitar el pack de iconos que hemos instalado. Para eso vamos al menú de inicio y:
+- Preferences
+  - LXQt Settings
+    - Appearance
+      - Icons Theme: *Papirus-Dark*
+
+Tras esto reiniciamos, o cerramos sesión y volvemos a iniciarla para reiniciar X.
