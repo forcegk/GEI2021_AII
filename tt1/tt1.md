@@ -450,3 +450,44 @@ A parte de poder efectivamente ver que funciona internet, si accedemos a
 podremos ver los usuarios logueados, como se ve en la imagen a continuación:
 
 ![Lista de usuarios autenticados en portal cautivo desde pfSense](./img/captive_portal_basic_2.png)
+
+# Autenticación por RADIUS
+## Instalación de soporte de freeradius en pfSense
+Tras configurar correctamente el portal cautivo sin autenticación, deberemos configurar pfsense para que autentique contra un servidor freeradius. Para esto navegaremos la web UI tal que:
+- System
+  - Package Manager
+    - Available Packages
+      - Search *Buscamos por "radius"*
+      - Seleccionamos freeradius3 -> *Install*
+      - Confirmamos
+
+En el proceso de instalación nos saldrá una pantalla como esta, esperamos pacientemente.
+
+![Administrador de paquetes de pfSense instalando](./img/pfsense_installing_freeradius3.png)
+
+Una vez terminada la instalación, hacemos como nos indica la consola y vamos a Services -> FreeRADIUS.
+
+También nos indica
+```EAP certificate configuration is required before using the package. Visit System > Cert. Manager and create a CA and a server certificate. After that, visit Services > FreeRADIUS > EAP tab and complete the 'Certificates for TLS' section (and, optionally, also the 'EAP-TLS' section.)``` Esto lo guardaremos para luego.
+
+## Instalación de OpenLDAP en srv1-arch
+Para instalar OpenLDAP en el servidor procederemos con los siguientes comandos
+```TODO```
+
+## Instalación de jxplorer en pc1-arch
+Para instalar jxplorer: el software que usaremos para gestionar el servidor LDAP, necesitaremos bajar su paquete del AUR (Arch User Repository), para lo cual no es necesario pero sí conveniente un AUR helper. En esta ocasión utilizaremos `yay`.
+
+Para instalar yay, procederemos tal que:
+```bash
+sudo pacman -S git
+git clone https://aur.archlinux.org/yay-bin.git
+cd yay-bin
+makepkg -sri
+cd ..
+sudo rm -rf yay-bin
+```
+
+Y tras tener yay instalado, procederemos a instalar jxplorer y java. En el diálogo que nos pregunta `Remove make dependencies after install? [y/N]`, respondemos que si [`y`]. Tras eso simplemente pulsamos \<ENTER\> para aceptar todo por defecto.
+```bash
+yay -S jdk8-openjdk jxplorer
+```
