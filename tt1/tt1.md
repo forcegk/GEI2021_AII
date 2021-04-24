@@ -253,7 +253,7 @@ Ahora nos ocurre un error muy extraño, y es que ambas máquinas tienen la direc
 ### Instalar un entorno de escritorio en pc1-arch
 Para instalar un entorno de escritorio en Arch Linux es realmente sencillo, únicamente debemos tener acceso a internet y ejecutar el siguiente comando, pulsando \<ENTER\> ante cualquier diálogo (acepta por defecto).
 ```bash
-sudo pacman -S lxqt papirus-icon-theme sddm virtualbox-guest-utils noto-fonts
+sudo pacman -S lxqt papirus-icon-theme sddm virtualbox-guest-utils noto-fonts firefox
 sudo systemctl enable vboxservice.service sddm
 sudo reboot
 ```
@@ -271,3 +271,16 @@ En Arch Linux hay que configurar las cosas manualmente, así que tenemos que hab
       - Icons Theme: *Papirus-Dark*
 
 Tras esto reiniciamos, o cerramos sesión y volvemos a iniciarla para reiniciar X.
+
+### Configuración mediante la WebUI de pfSense desde pc1-arch
+Ahora vamos al Menú de Inicio -> Internet -> Firefox, lo abrimos, y nos dirigimos a la dirección 192.168.1.1, lo cual nos mostrará una pantalla como la siguiente:
+
+![Warning de Firefox por el uso de un certificado autofirmado](./img/firefox_https_selfsigned.png)
+
+Esto es producido porque pfSense está utilizando un certificado autofirmado, pero no hay mayor problema en usarlo así. Para continuar haremos click en *Advanced* -> *Accept the Risk and Continue*. Tras continuar veremos la webUI de pfSense, introduciremos las credenciales `admin:pfsense`:
+
+![Credenciales introducidos en el login de pfSense](./img/firefox_https_login.png)
+
+Como podemos imaginar, esto de que la contraseña sea la que viene por defecto, no es precisamente una buena práctica de seguridad, por lo que nos tocará cambiarla. Aprovechando el Warning que nos sale, haremos click en *Change the password in the User Manager*, como se muestra en la imagen siguiente:
+
+![Warning indicando que se debe cambiar la comtraseña de admin](./img/pfsense_change_passwd.png)
