@@ -258,19 +258,20 @@ sudo rm /etc/machine-id
 Es importante la última línea, ya que si nuestra machine-id coincide, vamos a tener todo tipo de conflictos, por ejemplo con la IP en los DHCP. Tras eso reiniciamos (por ejemplo con `sudo reboot`).
 
 ## Instalar un entorno de escritorio en pc1-arch
+Para evitarnos problemas, ya que se ha detectado que los primeros mirrors de la ISO a momento de realización del trabajo no están funcionando correctamente, se propone actualizar la mirrorlist con:
+```bash
+sudo pacman -S reflector
+sudo reflector --verbose --latest 5 --protocol https --sort rate \
+--save /etc/pacman.d/mirrorlist
+sudo pacman -Syy
+```
+
 Para instalar un entorno de escritorio en Arch Linux es realmente sencillo, únicamente debemos tener acceso a internet y ejecutar el siguiente comando, pulsando \<ENTER\> ante cualquier diálogo (acepta por defecto).
 ```bash
 sudo pacman -S lxqt papirus-icon-theme sddm virtualbox-guest-utils \
 noto-fonts firefox
 sudo systemctl enable vboxservice.service sddm
 sudo reboot
-```
-
-Si vemos que la velocidad de descargar es muy baja, podemos ejecutar
-```bash
-sudo pacman -S reflector
-sudo reflector --verbose --latest 5 --protocol https --sort rate \
---save /etc/pacman.d/mirrorlist
 ```
 
 En Arch Linux hay que configurar las cosas manualmente, así que tenemos que habilitar el pack de iconos que hemos instalado. Para eso vamos al menú de inicio y:
