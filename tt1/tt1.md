@@ -286,3 +286,9 @@ Esto es producido porque pfSense está utilizando un certificado autofirmado, pe
 Como podemos imaginar, esto de que la contraseña sea la que viene por defecto, no es precisamente una buena práctica de seguridad, por lo que nos tocará cambiarla. Aprovechando el Warning que nos sale, haremos click en *Change the password in the User Manager*, como se muestra en la imagen siguiente:
 
 ![Warning indicando que se debe cambiar la comtraseña de admin](./img/pfsense_change_passwd.png)
+
+La nueva contraseña a efectos de demostración, y que evidentemente no debe ser usada en produccion por su sencilleza será `pc1234`. Tras esto bajamos al final de la página y hacemos click en 💾 *Save*.
+
+Una vez guardado iremos a la parte superior derecha de la página para hacer *logout* y volveremos a iniciar sesión con las nuevas credencias `admin:pc1234`. Esto nos debería dejar en la siguiente pantalla: el Dashboard.
+
+![Dashboard de pfSense](./img/pfsense_dashboard1.png)
