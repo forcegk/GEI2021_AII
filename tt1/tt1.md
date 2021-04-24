@@ -253,7 +253,8 @@ Ahora nos ocurre un error muy extraño, y es que ambas máquinas tienen la direc
 ### Instalar un entorno de escritorio en pc1-arch
 Para instalar un entorno de escritorio en Arch Linux es realmente sencillo, únicamente debemos tener acceso a internet y ejecutar el siguiente comando, pulsando \<ENTER\> ante cualquier diálogo (acepta por defecto).
 ```bash
-sudo pacman -S lxqt papirus-icon-theme sddm virtualbox-guest-utils noto-fonts firefox
+sudo pacman -S lxqt papirus-icon-theme sddm virtualbox-guest-utils \
+noto-fonts firefox
 sudo systemctl enable vboxservice.service sddm
 sudo reboot
 ```
@@ -261,7 +262,8 @@ sudo reboot
 Si vemos que la velocidad de descargar es muy baja, podemos ejecutar
 ```bash
 sudo pacman -S reflector
-sudo reflector --verbose --latest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+sudo reflector --verbose --latest 5 --protocol https --sort rate \
+--save /etc/pacman.d/mirrorlist
 ```
 
 En Arch Linux hay que configurar las cosas manualmente, así que tenemos que habilitar el pack de iconos que hemos instalado. Para eso vamos al menú de inicio y:
