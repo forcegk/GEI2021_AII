@@ -400,3 +400,53 @@ De todos modos, en este punto que ya estamos probando la conexión a internet, n
 Por otro lado, parecía que el DNS Forwarder que tambien hemos configurado previamente para descartar posibles "puntos lentos", no esté funcionando de forma adecuada, lo cual se puede solventar eliminando las cachés de systemd-resolved, con el comando `sudo systemd-resolve --flush-caches`. Tras esto y como estamos en un escenario de pruebas, vamos a dejar activo el DNS Forwarder, ya que parece que el rendimiento de la red mejora un montón con respecto al DNS server, y aún por encima nos permite direccionar los hosts por DHCP, que es prácticamente todo lo que necesitamos con respecto al DNS para este trabajo.
 
 Con todas estas configuraciones intentando corregir el error comentado anteriormente de la baja velocidad que se obtiene, parece que efectivamente se ha solucionado el problema.
+
+# Configuración del Portal Cautivo
+Para configurar un portal cautivo básico es realmente sencillo, debemos acceder a la interfaz web de pfSense y dirigirnos a:
+- Services
+  - Captive Portal
+    - Add
+      - Zone name *clientes*
+      - Zone description *Portal cautivo para los clientes de nuestro supermercado*
+
+Una vez creado el portal cutivo, nos lleva a la página de configuración del mismo, en el que vemos el siguiente aviso:
+
+```Don't forget to enable the DHCP server on the captive portal interface! Make sure that the default/maximum DHCP lease time is higher than the hard timeout entered on this page. Also, the DNS Forwarder or Resolver must be enabled for DNS lookups by unauthenticated clients to work.```
+
+Como en nuestro caso ya tenemos habilitado el DHCP en la interfaz OPT1, solamente tendremos que prestar atención a la segunda parte del mensaje más adelante.
+
+- Hacemos click en *Enable Captive Portal*
+  - Interaces *OPT1*
+  - Maximum concurrent connections *100*
+  - Idle timeout *60*
+  - Hard timeout *240*
+
+Tenemos muchos más ajustes disponibles, como por ejemplo logos personalizados (donde podríamos poner el logo de nuestro supermercado... etc)
+
+En Authentication
+  - Authentication Method: por el momento pondremos *None, don't authenticate users*, ya que esta es una primera aproximación, y querremos verificar que funciona. Posteriormente usaremos RADIUS.
+
+Y bajamos al fondo de la página, donde presionamos 
+  - 💾 *Save*
+
+## Configuración de DHCP lease time
+Ahora tenemos que ir a configurar la segunda parte del mensaje, el DHCP lease time, que no puede ser menor que el Hard timeout del portal cautivo. Para ello:
+- Services
+  - DHCP Server
+    - OPT1
+      - Other Options
+        - Default lease time *14400*
+    - 💾 *Save*  
+
+## Testeo del Portal Cautivo
+Y para probar que funciona, volveremos a uno de los dos clientes, abriremos Firefox, e intentaremos acceder a cualquier página web. Si todo va bien, pfSense nos interceptará y pedirá logueo, que en nuestro caso básico será únicamente un botón de login sin credenciales, como se ve en la imagen siguiente:
+
+![Autenticación sin usuario en portal cautivo](./img/captive_portal_basic_1.png)
+
+A parte de poder efectivamente ver que funciona internet, si accedemos a
+- Status
+  - Captive Portal
+
+podremos ver los usuarios logueados, como se ve en la imagen a continuación:
+
+![Lista de usuarios autenticados en portal cautivo desde pfSense](./img/captive_portal_basic_2.png)
