@@ -214,6 +214,8 @@ chmod +x /mnt/chroot-steps.sh
 
 arch-chroot /mnt /chroot-steps.sh
 
+rm /mnt/chroot-steps.sh
+
 poweroff
 ```
 
