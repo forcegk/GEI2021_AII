@@ -471,8 +471,100 @@ También nos indica
 ```EAP certificate configuration is required before using the package. Visit System > Cert. Manager and create a CA and a server certificate. After that, visit Services > FreeRADIUS > EAP tab and complete the 'Certificates for TLS' section (and, optionally, also the 'EAP-TLS' section.)``` Esto lo guardaremos para luego.
 
 ## Instalación de OpenLDAP en srv1-arch
-Para instalar OpenLDAP en el servidor procederemos con los siguientes comandos
-```TODO```
+Para instalar OpenLDAP en el servidor procederemos con los siguientes comandos:
+
+```bash
+sudo pacman -S openldap
+```
+
+## Configuración de OpenLDAP en srv1-arch
+### Configuración inicial
+Ahora procederemos a configurar el servidor openldap. Por comodidad los siguentes comandos se ejecutan como root (`sudo su`).
+
+La configuración de servidor de openldap se encuentra en `/etc/openldap/slapd.conf`. La editaremos tal que:
+- Cambiamos el campo `suffix` a `"dc=tt1,dc=pri"`. Esto indica nuestro sufijo, que suele ser (y en nuestro caso es) el dominio.
+- El campo `rootdn` a `"cn=root,dc=tt1,dc=pri"`. Esta línea indica básicamente el administrador, el cual en nuestro caso será root.
+- Al inicio del fichero, en la zona de includes añadiremos
+```
+include         /etc/openldap/schema/cosine.schema
+include         /etc/openldap/schema/inetorgperson.schema
+include         /etc/openldap/schema/nis.schema
+```
+
+Tras realizar todo esto guardamos, y ejecutaremos los siguientes comandos, el primero para eliminar la contraseña de root actual, y el segundo para escribir al archivo la password hasheada de root. De nuevo, esta no destaca por su complejidad, pero es solamente a efectos de demostración.
+```bash
+sed -i "/rootpw/ d" /etc/openldap/slapd.conf
+echo "rootpw     $(slappasswd -s pc1234)" >> /etc/openldap/slapd.conf
+```
+
+Preparamos el directorio de la base de datos con
+```bash
+cp /var/lib/openldap/openldap-data/DB_CONFIG.example /var/lib/openldap/openldap-data/DB_CONFIG
+```
+
+<!--- TROUBLESHOOT Aplicamos los cambios (y los permisos) a las carpetas de slapd:
+```bash
+slapadd -l /dev/null -f /etc/openldap/slapd.conf
+rm -rf /etc/openldap/slapd.d/*
+slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d/
+chown -R ldap:ldap /etc/openldap/slapd.d
+chown ldap:ldap /var/lib/openldap/openldap-data/*
+sudo -u ldap slapindex
+``` --->
+#### Configuración del cliente en el propio servidor (para labores de administración)
+Para esto configuraremos el archivo `/etc/openldap/ldap.conf`
+- Descomentamos el campo `BASE` y lo ponemos a `"dc=tt1,dc=pri"`.
+- Descomentamos el campo `URI` y lo ponemos a `ldap://192.168.1.200 ldap://192.168.1.200:666`
+
+
+### Binding DHCP estático
+Ahora tenemos un problema: Nuestra IP se obtiene por DHCP, así que por el momento y en este caso únicamente, tenemos la IP .106, por lo que hay que realizar una configuración de IP estática. Para esto podemos editar el archivo `/etc/systemd/network/20-wired.network`, pero como nos sigue interesanto utilizar DHCP, otra cosa que podemos hacer es realizar un binding estático de DHCP. 
+
+Desde la webUI de pfSense vamos a:
+- Services
+  - DHCP Server
+    - LAN
+      - DHCP Static Mappings for this Interface
+        - Add
+          - MAC Address (la MAC de `srv1-arch`). En mi caso *08:00:27:C4:3B:B1*
+          - Client Identifier. No es muy relevante, pero en mi caso pondré *Servidor 1 Arch*
+          - IP address *192.168.1.200*
+          - Hostname *srv1-arch
+        - 💾 *Save*  
+      - *Apply Changes*
+
+Ahora en `srv1-arch` reiniciamos la red con `sudo systemctl restart systemd-networkd`
+
+### Activación del servicio
+Tras configurar todo adecuadamente, nos falta activar e iniciar el servicio con `sudo systemctl enable --now slapd.service`
+
+### Creación de la entrada inicial
+Ahora que tenemos iniciado el servicio, y el cliente está configurado, podemos crear la entrada inicial, así como el grupo de usuarios. Para ello creamos el el siguiente archivo `firstent.ldif`:
+```ldif
+dn: dc=tt1,dc=pri
+objectClass: dcObject
+objectClass: organization
+dc: tt1
+o: tt1
+description: TT1 directory
+
+dn: cn=root,dc=tt1,dc=pri
+objectClass: organizationalRole
+cn: root
+description: TT1 Directory Manager
+
+dn: ou=users,dc=tt1,dc=pri
+objectClass: organizationalUnit
+objectClass: top
+ou: users
+```
+
+Y realizamos la transacción con el comando:
+```bash
+ldapadd -c -x -D 'cn=root,dc=tt1,dc=pri' -W -f firstent.ldif
+```
+
+Introducimos la contraseña de LDAP `pc1234` y aceptamos.
 
 ## Instalación de jxplorer en pc1-arch
 Para instalar jxplorer: el software que usaremos para gestionar el servidor LDAP, necesitaremos bajar su paquete del AUR (Arch User Repository), para lo cual no es necesario pero sí conveniente un AUR helper. En esta ocasión utilizaremos `yay`.
@@ -491,3 +583,88 @@ Y tras tener yay instalado, procederemos a instalar jxplorer y java. En el diál
 ```bash
 yay -S jdk8-openjdk jxplorer
 ```
+
+## Inserción de usuarios desde jxplorer
+Para testear el correcto funcionamiento del servidor LDAP, vamos a insertar un usuario a mano en jxplorer.
+
+Nos dirigiremos a jxplorer en `pc1-arch` -> File -> Connect
+- Host *192.168.1.200*
+- Base DN *dc=tt1,dc=pri*
+- Security
+  - Level: *User + Password*
+  - User DN: *cn=root,dc=tt1,dc=pri*
+  - Password: *pc1234*
+
+Si lo creemos conveniente podemos guardar el perfil. En nuestro caso lo haremos.
+
+### Inserción del usuario Cliente 1
+Para insertar el usuario Cliente 1, y una vez estamos autenticados, nos dirigiremos a users, le daremos click derecho, new, y rellenaremos los siguientes datos, como también se muestra en la imagen posterior para Cliente 2.
+
+- Parent DN: *ou=users,dc=tt1,dc=pri* (este ya debería venir automáticamente)
+- Enter RND: *cn=Cliente 1*
+- Selected Classes: *organizationalPerson*, *person*, *top*
+
+Y pulsamos *OK*
+
+[Diálogo para inserción de Cliente 2 en jxplorer](./img/creando_cliente_2.png)
+
+En el formulario que se nos abre, deberemos rellenar:
+- **sn**: *cliente1* (surname, a pesar de que en nuestro contexto un apellido no tiene mucho sentido, aprovecharemos para poner el nombre de usuario, ya que es obligatorio cumplimentar este campo)
+- **userPassword**: `cliente1` (la contraseña será *cliente+"número de cliente"*)
+  - Algoritmo de cifrado *MD5*
+
+Tras esto pulsamos en *Submit*.
+
+### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO Inserción de otros usuarios en bulk
+Como vemos que ha funcionado, ahora vamos a insertar una mayor base de datos en bulk con un fichero ldif.
+**TODO**
+
+## Configuración de LDAP como servidor de usuarios en pfSense
+En la web UI de pfSense vamos a:
+- System
+  - User Manager
+    - Authentication Servers
+      - Add
+        - Server Settings
+          - Descritptive name *Servidor OpenLDAP en srv1-arch*
+          - Type *LDAP*
+        - LDAP Server Settings
+          - Hostname or IP address *192.168.1.200*
+          - Transport *Standard TCP* Por el momento vamos a usar TCP estándar. En una próxima iteración configuraremos TLS en el servidor OpenLDAP para que todo el tráfico vaya encriptado.
+          - Level *Entire Subtree*
+          - Base DN *dc=tt1,dc=pri*
+          - Authentication containers *ou=users,dc=tt1,dc=pri*
+          - Bind anonymous [ ]
+            - Bind credentials *cn=root,dc=tt1,dc=pri* , *pc1234*
+          - User naming attribute *sn*
+          - UTF8 Encode [x] UTF8 encode LDAP parameters before sending them to the server.
+      - 💾 *Save*
+
+## Condiguración del Portal Cautivo para que autentique contra el servidor LDAP
+En la web UI de pfSense:
+- Services
+  - Captive Portal
+    - Clientes -> Edit (✏️)
+      - Authentication
+        - Authentication Method
+          - Use an Authentication backend
+            - Authentication Server
+              - *Servidor OpenLDAP en srv1-arch*
+            - Secondary authentication Server
+              - *lo dejamos vacío*
+      - 💾 *Save*
+
+### Probamos configuración en cliente1-arch
+Para probar que funciona, volveremos a uno de los dos clientes, abriremos Firefox, e intentaremos acceder a cualquier página web. pfSense nos intercepta y pide esta vez logueo, pero esta vez con credenciales. En ella cumplimentamos los datos, como se ve en la imagen siguiente:
+
+![Autenticación con usuario desde LDAP en portal cautivo](./img/captive_portal_ldap_1.png)
+
+Y como podremos observar, Firefox nos muestra un mensaje de `success`, y ya podremos navegar por Internet.
+
+Además, si vamos a
+- Status
+  - Captive Portal
+
+Podremos ver la sesión recién iniciada por cliente1.
+
+![Usuario autenticado desde LDAP mostrándose en la lista de usuarios del portal cautivo](./img/captive_portal_ldap_session_2.png)
