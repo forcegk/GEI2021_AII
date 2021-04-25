@@ -502,15 +502,6 @@ Preparamos el directorio de la base de datos con
 cp /var/lib/openldap/openldap-data/DB_CONFIG.example /var/lib/openldap/openldap-data/DB_CONFIG
 ```
 
-<!--- TROUBLESHOOT Aplicamos los cambios (y los permisos) a las carpetas de slapd:
-```bash
-slapadd -l /dev/null -f /etc/openldap/slapd.conf
-rm -rf /etc/openldap/slapd.d/*
-slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d/
-chown -R ldap:ldap /etc/openldap/slapd.d
-chown ldap:ldap /var/lib/openldap/openldap-data/*
-sudo -u ldap slapindex
-``` --->
 #### Configuración del cliente en el propio servidor (para labores de administración)
 Para esto configuraremos el archivo `/etc/openldap/ldap.conf`
 - Descomentamos el campo `BASE` y lo ponemos a `"dc=tt1,dc=pri"`.
@@ -606,7 +597,7 @@ Para insertar el usuario Cliente 1, y una vez estamos autenticados, nos dirigire
 
 Y pulsamos *OK*
 
-[Diálogo para inserción de Cliente 2 en jxplorer](./img/creando_cliente_2.png)
+![Diálogo para inserción de Cliente 2 en jxplorer](./img/creando_cliente_2.png)
 
 En el formulario que se nos abre, deberemos rellenar:
 - **sn**: *cliente1* (surname, a pesar de que en nuestro contexto un apellido no tiene mucho sentido, aprovecharemos para poner el nombre de usuario, ya que es obligatorio cumplimentar este campo)
@@ -615,9 +606,33 @@ En el formulario que se nos abre, deberemos rellenar:
 
 Tras esto pulsamos en *Submit*.
 
-### TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO Inserción de otros usuarios en bulk
+### Inserción de otros usuarios en bulk
 Como vemos que ha funcionado, ahora vamos a insertar una mayor base de datos en bulk con un fichero ldif.
-**TODO**
+
+Escribimos el script que escriba el fichero `users.ldif`. En este caso le llamaremos `createusers.sh`, y lo usaremos para crear los usuarios del 2 al 100.
+```bash
+#!/bin/bash
+
+echo -n > users.ldif
+
+for i in {2..100}; do
+  echo dn: cn=Cliente $i,ou=users,dc=tt1,dc=pri >> users.ldif
+  echo objectClass: organizationalPerson >> users.ldif
+  echo objectClass: person >> users.ldif
+  echo objectClass: top >> users.ldif
+  echo sn: cliente${i} >> users.ldif
+  echo userPassword: $(slappasswd -h {MD5} -s cliente$i) >> users.ldif
+  echo cn: Cliente $i >> users.ldif
+  echo "" >> users.ldif
+done  
+```
+
+Y lo ejecutamos con `bash createusers.sh`
+
+Tras escribir el comando lo ejecutamos con
+```bash
+ldapadd -c -x -D 'cn=root,dc=tt1,dc=pri' -W -f users.ldif
+```
 
 ## Configuración de LDAP como servidor de usuarios en pfSense
 En la web UI de pfSense vamos a:
