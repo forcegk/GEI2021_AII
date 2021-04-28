@@ -1,7 +1,7 @@
 #Comprobamos que la configuracion ldap es
 #correcta
 
-ldapsearch -D 'cn=rot,dc=tt1,dc=pri' -w 'pc1234' -h '127.0.0.1' -b 'ou=users,dc=tt1,dc=pri'
+ldapsearch -D 'cn=root,dc=tt1,dc=pri' -w 'pc1234' -h '127.0.0.1' -b 'ou=users,dc=tt1,dc=pri'
 
 cd /etc/raddb/
 

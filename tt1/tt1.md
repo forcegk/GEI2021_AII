@@ -641,7 +641,7 @@ En la web UI de pfSense vamos a:
           - UTF8 Encode [x] UTF8 encode LDAP parameters before sending them to the server.
       - 💾 *Save*
 
-## Condiguración del Portal Cautivo para que autentique contra el servidor LDAP
+## Configuración del Portal Cautivo para que autentique contra el servidor LDAP
 En la web UI de pfSense:
 - Services
   - Captive Portal
@@ -649,10 +649,10 @@ En la web UI de pfSense:
       - Authentication
         - Authentication Method
           - Use an Authentication backend
-            - Authentication Server
-              - *Servidor OpenLDAP en srv1-arch*
-            - Secondary authentication Server
-              - *lo dejamos vacío*
+        - Authentication Server
+          - *Servidor OpenLDAP en srv1-arch*
+        - Secondary authentication Server
+          - *lo dejamos vacío*
       - 💾 *Save*
 
 ### Probamos configuración en cliente1-arch
@@ -688,3 +688,108 @@ Una vez terminada la instalación, hacemos como nos indica la consola y vamos a 
 
 También nos indica
 ```EAP certificate configuration is required before using the package. Visit System > Cert. Manager and create a CA and a server certificate. After that, visit Services > FreeRADIUS > EAP tab and complete the 'Certificates for TLS' section (and, optionally, also the 'EAP-TLS' section.)``` Esto lo guardaremos para luego.
+
+## Instalación de freeradius en srv1-arch
+Primeramente deberemos instalar el paquete freeradius de los repositorios oficiales de Arch Linux con:
+
+```bash
+sudo pacman -S freeradius
+```
+
+## Configuración de freeradius en srv1-arch
+Tras esto nos hacemos root (`sudo su`) y realizamos las siguientes ediciones:
+
+### Configuración del mod ldap
+En `/etc/raddb/mods-available/ldap`:
+- Verificamos que el campo `server` = `localhost`
+- Descomentamos y modificamos el campo `identity` = `'cn=root,dc=tt1,dc=pri'`
+- Descomentamos y modificamos el campo `password` = `'pc1234'`
+- Modificamos el campo `base_dn` = `'ou=users,dc=tt1,dc=pri'`
+- Buscamos por `user {`, y nos llevará a la primera (y única) coincidencia de la definición del *user object identification*
+  - Modificamos el campo `filter` = `"(sn=%{%{Stripped-User-Name}:-%{User-Name}})"`, en concreto cambiamos `uid` por `sn`
+
+### Activación del mod ldap
+Continuamos activando el módulo con
+```bash
+ln -s /etc/raddb/mods-available/ldap /etc/raddb/mods-enabled/ldap
+```
+
+### Creación de certificados???? TODO XABI
+Compilamos los certificados ?????????
+```bash
+cd /etc/raddb/certs
+sudo -u radiusd make
+```
+y esperamos pacientemente a que se complete...
+
+### Configuración de accesos de clientes
+Tenemos que configurar para que se pueda conectar pfSense a nosotros, para ello editaremos el archivo `/etc/raddb/clients.conf` tal que:
+```bash
+cat << EOS >> /etc/raddb/clients.conf
+client pfsense {
+    ipaddr  =  192.168.1.1
+    secret  =  pc1234
+}
+EOS
+```
+
+### Chequeo de configuración
+Lo que hemos hecho debería estar correcto, podemos comprobarlo con
+```bash
+sudo -u radiusd radiusd -CX
+```
+lo que, si todo ha ido bien, dirá que `Configuration appears to be OK`, y nos proporcionará una salida como la que se observa en la siguiente imagen:
+
+![Salida del comando radiusd -CX](./img/freeradius_config_1.png)
+
+### Inicio de radiusd en modo debug
+Ahora iniciaremos el radius en modo debug. Tras esto iremos a pfSense a configurarlo, pero primero, veremos qué salida nos arroja el mismo. La ejecución se realiza mediante el comando
+```bash
+sudo -u radiusd radiusd -X
+```
+Esto nos arrojará la siguiente salida si todo ha ido bien:
+
+![Salida del comando radiusd -X](./img/freeradius_running_1.png)
+
+## Configuración de freeradius en pfSense
+Ahora debemos configurar la autenticación de nuestro portal cautivo desde pfSense desde la web UI de la siguiente manera:
+- System
+  - User Manager
+    - Authentication Servers
+      - Add
+        - Server Settings
+          - Descritptive name *Servidor FreeRADIUS en srv1-arch*
+          - Type *RADIUS*
+        - RADIUS Server Settings
+          - Protocol *PAP*
+          - Hostname or IP address *192.168.1.200*
+          - Shared Secret *pc1234*
+          - Services Offered *Authentication*
+          - Authentication Timeout *5* (el valor por defecto)
+          - RADIUS NAS IP Attribute *OPT1 - 192.168.2.1*
+      - 💾 *Save*
+
+### Comprobación de configuración correcta
+Para comprobar que la conexión al servidor RADIUS sea correcta, podemos dirigirnos a
+- Diagnostics
+  - Authentication
+    - Authentication Test
+      - Authentication Server *Servidor FreeRADIUS en srv1-arch*
+      - Username *cliente*
+      - Password *cliente*
+
+Si todo ha salido correctamente, deberemos ver el correspondiente log en *srv1-arch*, y un mensaje indicando que la autenticación ha tenido éxito en la web UI de pfSense, como se muestra en la imagen a continuación.
+
+![Éxito en la autenticación contra freeradius](./img/freeradius_pfsense_test.png)
+
+## Configuración del Portal Cautivo para que autentique contra el servidor RADIUS
+Ahora hemos de modificar como ya hicimos antes la autenticación del portal cautivo, para que lo haga contra el servidor FreeRADIUS, tal que
+- Services
+  - Captive Portal
+    - Clientes -> Edit (✏️)
+      - Authentication
+        - Authentication Server
+          - *Servidor FreeRADIUS en srv1-arch*
+        - Secondary authentication Server
+          - *lo dejamos vacío*
+    - 💾 *Save*
