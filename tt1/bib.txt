@@ -18,3 +18,4 @@ FreeRADIUS + OpenLDAP = {
 }
 
 https://www.nasirhafeez.com/freeradius-with-ldaps-on-azure-ad-domain-services/
+https://www.linuxito.com/gnu-linux/nivel-alto/994-como-implementar-ldap-sobre-ssl-tls-con-openldap

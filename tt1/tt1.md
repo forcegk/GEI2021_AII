@@ -777,3 +777,103 @@ Ahora hemos de modificar como ya hicimos antes la autenticación del portal caut
         - Secondary authentication Server
           - *lo dejamos vacío*
     - 💾 *Save*
+
+# Configuración de LDAPS (LDAP over TLS)
+## Creación de CA y certificados
+Crearemos una CA con:
+```bash
+mkdir -p /etc/openldap/ldap-ca
+cd /etc/openldap/ldap-ca
+touch index.txt
+echo 01 > serial
+openssl genrsa -out ca.key 4096
+openssl req -new -x509 -days 365 -key ca.key -out ca.cert.pem
+```
+- Country Name *ES*
+- State or Province Name *Galicia*
+- Locality Name *A Coruna*
+- Organization Name *UDC*
+- Organizational Unit Name *AII-CA*
+- Common Name *srv1-arch.tt1.pri*
+- Email Address *admin@tt1.pri*
+- Challenge password *\*en blanco\**
+- An optional company name *\*en blanco\**
+
+Creamos la solicitud de certificado para slapd:
+```bash
+mkdir -p /etc/openldap/private
+cd /etc/openldap/private
+openssl genrsa -out ldap.srv1-arch.tt1.pri.key 4096
+openssl req -new -key ldap.srv1-arch.tt1.pri.key -out ldap.srv1-arch.tt1.pri.csr
+```
+- Country Name *ES*
+- State or Province Name *Galicia*
+- Locality Name *A Coruna*
+- Organization Name *UDC*
+- Organizational Unit Name *AII-LDAP*
+- Common Name *srv1-arch.tt1.pri*
+- Email Address *admin@tt1.pri*
+- Challenge password *\*en blanco\**
+- An optional company name *slapd*
+
+Y lo firmamos con nuestra CA:
+```bash
+openssl ca -keyfile /etc/openldap/ldap-ca/ca.key -cert /etc/openldap/ldap-ca/ca.cert.pem -in /etc/openldap/private/ldap.srv1-arch.tt1.pri.csr -out /etc/openldap/private/ldap.srv1-arch.tt1.pri.crt -extensions v3_ca
+```
+
+Tras eso copiamos el archivo de configuración de OpenSSL a la carpeta actual:
+```bash
+cp /etc/ssl/openssl.cnf /etc/openldap/ldap-ca.conf
+``` 
+
+Y editamos bajo la sección `[ CA_default ]`
+- `dir` = `./ldap-ca`
+- `certificate` = `$dir/ldap-ca.crt`
+- `private_key` = `$dir/private/ldap-ca.key`
+
+Tras ello creamos los directorios correspondientes y movemos los archivos
+```bash
+#!/bin/bash
+pushd /etc/openldap > /dev/null
+
+mkdir ldap-ca
+mkdir ldap-ca/certs
+mkdir ldap-ca/private
+mkdir ldap-ca/crl
+mkdir ldap-ca/newcerts
+mv ldap-ca.crt ldap-ca/
+mv ldap-ca.csr ldap-ca/
+mv ldap-ca.key ldap-ca/private/
+echo -n > ldap-ca/index.txt
+echo -n 01 > ldap-ca/serial
+
+chown ldap:ldap slapd.{csr,crt,key}
+chmod 440 slapd.{csr,crt,key}
+chown -R root:root ldap-ca*
+chmod 755 ldap-ca
+chmod 750 ldap-ca/{certs,crl,newcerts,private}
+chmod 400 ldap-ca/private/ldap-ca.key 
+chmod 444 ldap-ca/ldap-ca.crt 
+```
+
+## Configuración de slapd
+Ahora añadiremos las rutas de los certificados a `/etc/openldap/slapd.conf` con:
+```bash
+cat << EOS >> /etc/openldap/slapd.conf
+
+#######################################################################
+# TLS configuration 
+#######################################################################
+
+TLSCACertificateFile /etc/openldap/ldap-ca/ldap-ca.crt
+TLSCertificateFile /etc/openldap/slapd.crt
+TLSCertificateKeyFile /etc/openldap/slapd.key
+EOS
+```
+
+```bash
+olcTLSCertificateFile: /etc/openldap/slapd.crt
+olcTLSCertificateKeyFile: /etc/openldap/certs/slapd.key
+```
+
+Y reiniciaremos slapd para verificar que no hemos introducido ningún error con `systemctl restart slapd`
