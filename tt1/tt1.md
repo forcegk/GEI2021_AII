@@ -671,24 +671,6 @@ Podremos ver la sesión recién iniciada por cliente1.
 ![Usuario autenticado desde LDAP mostrándose en la lista de usuarios del portal cautivo](./img/captive_portal_ldap_session_2.png)
 
 # Autenticación mediante freeradius
-## Instalación de soporte de freeradius en pfSense
-Tras configurar correctamente el portal cautivo con ldap al final de esta sección, deberemos configurar pfsense para que autentique contra un servidor freeradius. Para esto primeramente deberemos instalar el paquete con soporte para freeradius, para lo que navegaremos la web UI tal que:
-- System
-  - Package Manager
-    - Available Packages
-      - Search *Buscamos por "radius"*
-      - Seleccionamos freeradius3 -> *Install*
-      - Confirmamos
-
-En el proceso de instalación nos saldrá una pantalla como esta, esperamos pacientemente.
-
-![Administrador de paquetes de pfSense instalando](./img/pfsense_installing_freeradius3.png)
-
-Una vez terminada la instalación, hacemos como nos indica la consola y vamos a Services -> FreeRADIUS.
-
-También nos indica
-```EAP certificate configuration is required before using the package. Visit System > Cert. Manager and create a CA and a server certificate. After that, visit Services > FreeRADIUS > EAP tab and complete the 'Certificates for TLS' section (and, optionally, also the 'EAP-TLS' section.)``` Esto lo guardaremos para luego.
-
 ## Instalación de freeradius en srv1-arch
 Primeramente deberemos instalar el paquete freeradius de los repositorios oficiales de Arch Linux con:
 
@@ -714,8 +696,8 @@ Continuamos activando el módulo con
 ln -s /etc/raddb/mods-available/ldap /etc/raddb/mods-enabled/ldap
 ```
 
-### Creación de certificados???? TODO XABI
-Compilamos los certificados ?????????
+### Creación de claves y certificados
+Creamos los certificados, claves dh, etc, con
 ```bash
 cd /etc/raddb/certs
 sudo -u radiusd make
@@ -732,6 +714,8 @@ client pfsense {
 }
 EOS
 ```
+
+Destacar que secret no tiene por qué ser igual a la contraseña. Secret es una PSK, aunque simplemente aquí utilizamos `pc1234` para no crear más claves diferentes.
 
 ### Chequeo de configuración
 Lo que hemos hecho debería estar correcto, podemos comprobarlo con

@@ -16,3 +16,5 @@ FreeRADIUS + OpenLDAP = {
   https://www.howtoforge.com/wikid-openldap-freeradius-howto
   http://lists.freeradius.org/pipermail/freeradius-users/2017-September/088734.html
 }
+
+https://www.nasirhafeez.com/freeradius-with-ldaps-on-azure-ad-domain-services/
