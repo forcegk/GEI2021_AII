@@ -9,6 +9,7 @@ VBox Guest Additions = https://wiki.archlinux.org/index.php/VirtualBox/Install_A
 pfSense DNS Forwarder = https://www.bellera.cat/josep/pfsense/dns_cs.html
 systemd-networkd = https://wiki.archlinux.org/index.php/Systemd-networkd
 FreeRADIUS + OpenLDAP = {
+  https://wiki.freeradius.org/config/Configuration%20files
   https://techexpert.tips/es/pfsense-es/pfsense-autenticacion-de-radio-mediante-freeradius/
   https://www.howtoforge.com/wikid-openldap-freeradius-howto
   http://lists.freeradius.org/pipermail/freeradius-users/2017-September/088734.html
