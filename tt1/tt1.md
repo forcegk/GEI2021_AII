@@ -523,7 +523,7 @@ Desde la webUI de pfSense vamos a:
           - MAC Address (la MAC de `srv1-arch`). En mi caso *08:00:27:C4:3B:B1*
           - Client Identifier. No es muy relevante, pero en mi caso pondré *Servidor 1 Arch*
           - IP address *192.168.1.200*
-          - Hostname *srv1-arch
+          - Hostname *srv1-arch*
         - 💾 *Save*  
       - *Apply Changes*
 
@@ -939,7 +939,7 @@ Ahora nuestro servicio de autenticación por RADIUS ya no funciona, ya que no es
 ## Cambio de configuración en srv1-arch
 Para esto vamos a `/etc/raddb/mods-available/ldap`:
 - Verificamos que el campo `server` = `ldaps://localhost`
-- En la sección `tls`:
+- En la sección `tls` (buscando por `tls {`):
   - Descomentamos y modificamos el campo `ca_file` = `/etc/openldap/ca.crt`
   - Justo encima del campo anterior, descomentamos y modificamos el campo `start_tls` = `no`
 
@@ -950,3 +950,65 @@ Si todo ha salido bien y está funcionando, podemos parar el comando que ejecuta
 ```bash
 systemctl enable --now freeradius
 ```
+
+# Separación de freeradius en srv2-arch
+## Importación y configuración inicial de srv2-arch
+Hasta el momento, srv1-arch es servidor de tanto LDAP como de FreeRADIUS. Sin embargo, esto no va a ser necesariamente siempre así. Es un escenario posible que el servidor RADIUS y el OpenLDAP sean computadores, o recursos virtualizados separados, y por tanto, tambien un poco por practicar, vamos a hacer eso mismo: Separar FreeRADIUS de srv1-arch, a un nuevo ordenador srv2-arch.
+
+Para ello realizaremos lo siguiente:
+
+Importaremos la imagen creada previamente pcBase-arch, como se especifica en [Importar srv1-arch](##Importar-srv1-arch), y lo nombraremos `srv2-arch`.
+
+Tras el inicio, ejecutaremos los siguientes comandos para dejar la configuración completa
+```bash
+sudo sed -i 's/pc1-arch/srv2-arch/g' /etc/hostname
+sudo sed -i 's/pc1-arch/srv2-arch/g' /etc/hosts
+sudo rm /etc/machine-id
+sudo reboot
+```
+
+## Asignación de IP estática
+Para continuar, y si bien no es necesario asignarle IP estática, ya que el DNS forwarder ya relaciona las IP en DHCP con el hostname, vamos a asignarle la IP `192.168.1.201`. Para ello procedemos tal como se indica en [Binding DHCP estático](###Binding-DHCP-estático). Obviamente deberemos cambiar la IP y la MAC. (en mi caso *08:00:27:DF:6B:75*)
+
+## Instalación de FreeRADIUS
+Procederemos como en [Autenticación con FreeRADIUS](#Autenticación-mediante-freeradius), es decir:
+
+Instalamos
+```bash
+sudo pacman -S freeradius
+```
+
+Hecho esto, realizamos el resto de pasos con un par de diferencias:
+En `/etc/raddb/mods-available/ldap`, donde antes poníamos `server` = `localhost`, ahora pondremos `server` = `192.168.1.200`, y en el campo `ca_file`, como ahora no existe la carpeta /etc/openldap, pondremos `/etc/raddb/ca.crt`.
+
+Un detalle importante tambien es tener `require_cert` = `'allow'`
+
+Posterioremente aplicamos las modificaciones pertinentes, tal como se indica en [Configuración de RADIUS a LDAPS](#-Configuración-de-RADIUS-a-LDAPS). Un detalle importante es que debemos pasar el CA-Cert al nuevo servidor, esto se puede hacer mediante openssh. Para ello, hemos de instalarlo y ejecutarlo.
+```bash
+sudo pacman -S openssh
+sudo systemctl start sshd
+```
+En mi caso haré el trasvase desde la interfaz gráfica de pc1-arch, por lo que instalaré openssh en pc1-arch, y lo instalaré + ejecutaré el daemon en srv1-arch y srv2-arch.
+
+## Desactivación y parada del servicio freeradius en srv1-arch
+Lo paramos con:
+```bash
+sudo systemctl disable --now freeradius
+```
+
+## Modificación de freeradius en pfSense
+Tras haber realizado todos los pasos previos, ahora configuraremos pfSense para que autentique contra el nuevo servidor FreeRADIUS, esto se realiza en:
+
+# NOTAS VARIAS (XABI)
+/etc/raddb/sites-enabled/default -> buscar (primera coincidencia) `accounting {`, añadir una línea `ldap` al final de la sección para activar accounting en ldap. Descomentar tambien `ldap` en `post-auth {`
+
+Cambiar mapeo en /etc/raddb/mods-enables/ldap -> buscar (primera coincidencia) `update {`.
+
+Control -> necesario para autenticación
+Reply -> iformación adicional, no impide la auth
+
+# RESUMEN (XABI)
+Extendemos a todos los usuarios con radiusProfile
+Les añadimos Idle Time (por ejemplo)
+Recordar activar Interim en config de portal cautivo
+Info de acc en `/var/log/radius/radacct`

@@ -17,5 +17,6 @@ FreeRADIUS + OpenLDAP = {
   http://lists.freeradius.org/pipermail/freeradius-users/2017-September/088734.html
 }
 
+28/04/2021
 https://www.nasirhafeez.com/freeradius-with-ldaps-on-azure-ad-domain-services/
 https://www.linuxito.com/gnu-linux/nivel-alto/994-como-implementar-ldap-sobre-ssl-tls-con-openldap
