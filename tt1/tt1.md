@@ -488,6 +488,23 @@ Preparamos el directorio de la base de datos con
 cp /var/lib/openldap/openldap-data/DB_CONFIG.example /var/lib/openldap/openldap-data/DB_CONFIG
 ```
 
+Iniciamos slapd para crear la base de datos, y nada más iniciar, lo paramos.
+```bash
+systemctl start slapd
+systemctl stop slapd
+```
+
+Ejecutamos los siguientes comandos para poblar `/etc/openldap/slapd.d`
+```bash
+rm -rf /etc/openldap/slapd.d/*
+sudo -u ldap slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d/
+```
+
+Y activamos slapd, además de iniciarlo.
+```bash
+systemctl enable --now slapd
+```
+
 #### Configuración del cliente en el propio servidor (para labores de administración)
 Para esto configuraremos el archivo `/etc/openldap/ldap.conf`
 - Descomentamos el campo `BASE` y lo ponemos a `"dc=tt1,dc=pri"`.
@@ -512,8 +529,6 @@ Desde la webUI de pfSense vamos a:
 
 Ahora en `srv1-arch` reiniciamos la red con `sudo systemctl restart systemd-networkd`
 
-### Activación del servicio
-Tras configurar todo adecuadamente, nos falta activar e iniciar el servicio con `sudo systemctl enable --now slapd.service`
 
 ### Creación de la entrada inicial
 Ahora que tenemos iniciado el servicio, y el cliente está configurado, podemos crear la entrada inicial, así como el grupo de usuarios. Para ello creamos el el siguiente archivo `firstent.ldif`:
@@ -779,84 +794,68 @@ Ahora hemos de modificar como ya hicimos antes la autenticación del portal caut
     - 💾 *Save*
 
 # Configuración de LDAPS (LDAP over TLS)
-## Creación de CA y certificados
-Crearemos una CA con:
-```bash
-mkdir -p /etc/openldap/ldap-ca
-cd /etc/openldap/ldap-ca
-touch index.txt
-echo 01 > serial
-openssl genrsa -out ca.key 4096
-openssl req -new -x509 -days 365 -key ca.key -out ca.cert.pem
-```
-- Country Name *ES*
-- State or Province Name *Galicia*
-- Locality Name *A Coruna*
-- Organization Name *UDC*
-- Organizational Unit Name *AII-CA*
-- Common Name *srv1-arch.tt1.pri*
-- Email Address *admin@tt1.pri*
-- Challenge password *\*en blanco\**
-- An optional company name *\*en blanco\**
+## Instalación de Easy-RSA
+Como parece que no hay forma de usar OpenSSL sin que falle algo, vamos a recurrir a Easy-RSA, porque mientras escribo esto llevamos cuatro intentos diferentes solo para crear las claves y que verifiquen.
 
+Instalamos Easy-RSA con:
+```bash
+pacman -S easy-rsa
+```
+
+## Creación de CA y certificados
+### Creación de CA
+Procedemos tal que
+```bash
+cp -R /etc/easy-rsa /home/pc/pki-ldap
+cd /home/pc/pki-ldap
+export EASYRSA=$(pwd)
+easyrsa init-pki
+easyrsa build-ca
+```
+- Enter New CA Key Passphrase `pc1234`
+- Common Name *srv1-arch.tt1.pri*
+
+Esto nos ubicará `ca.crt` en `/home/pc/pki-ldap/pki/ca.crt` y `ca.key` en `/home/pc/pki-ldap/pki/private/ca.key`.
+
+### Creación de certificados para clientes
 Creamos la solicitud de certificado para slapd:
 ```bash
-mkdir -p /etc/openldap/private
-cd /etc/openldap/private
-openssl genrsa -out ldap.srv1-arch.tt1.pri.key 4096
-openssl req -new -key ldap.srv1-arch.tt1.pri.key -out ldap.srv1-arch.tt1.pri.csr
+cd /home/pc/pki-ldap
+easyrsa gen-req slapd nopass
 ```
-- Country Name *ES*
-- State or Province Name *Galicia*
-- Locality Name *A Coruna*
-- Organization Name *UDC*
-- Organizational Unit Name *AII-LDAP*
 - Common Name *srv1-arch.tt1.pri*
-- Email Address *admin@tt1.pri*
-- Challenge password *\*en blanco\**
-- An optional company name *slapd*
 
-Y lo firmamos con nuestra CA:
+Esto nos ubicará `slapd.req` en `/home/pc/pki-ldap/pki/reqs/slapd.req` y `slapd.key` en `/home/pc/pki-ldap/pki/private/slapd.key`.
+
+
+Ahora firmamos la request:
 ```bash
-openssl ca -keyfile /etc/openldap/ldap-ca/ca.key -cert /etc/openldap/ldap-ca/ca.cert.pem -in /etc/openldap/private/ldap.srv1-arch.tt1.pri.csr -out /etc/openldap/private/ldap.srv1-arch.tt1.pri.crt -extensions v3_ca
+easyrsa sign-req client slapd
 ```
 
-Tras eso copiamos el archivo de configuración de OpenSSL a la carpeta actual:
-```bash
-cp /etc/ssl/openssl.cnf /etc/openldap/ldap-ca.conf
-``` 
+- Respondemos *yes*
+- Ponemos la passphrase `pc1234`
 
-Y editamos bajo la sección `[ CA_default ]`
-- `dir` = `./ldap-ca`
-- `certificate` = `$dir/ldap-ca.crt`
-- `private_key` = `$dir/private/ldap-ca.key`
-
-Tras ello creamos los directorios correspondientes y movemos los archivos
-```bash
-#!/bin/bash
-pushd /etc/openldap > /dev/null
-
-mkdir ldap-ca
-mkdir ldap-ca/certs
-mkdir ldap-ca/private
-mkdir ldap-ca/crl
-mkdir ldap-ca/newcerts
-mv ldap-ca.crt ldap-ca/
-mv ldap-ca.csr ldap-ca/
-mv ldap-ca.key ldap-ca/private/
-echo -n > ldap-ca/index.txt
-echo -n 01 > ldap-ca/serial
-
-chown ldap:ldap slapd.{csr,crt,key}
-chmod 440 slapd.{csr,crt,key}
-chown -R root:root ldap-ca*
-chmod 755 ldap-ca
-chmod 750 ldap-ca/{certs,crl,newcerts,private}
-chmod 400 ldap-ca/private/ldap-ca.key 
-chmod 444 ldap-ca/ldap-ca.crt 
-```
+Esto nos ubicará `slapd.crt` en `/home/pc/pki-ldap/pki/issued/slapd.crt`
 
 ## Configuración de slapd
+### Copia de los certificados a /etc/openldap
+Copiaremos los certificados previamente creados con:
+
+```bash
+cp /home/pc/pki-ldap/pki/private/slapd.key /etc/openldap/
+cp /home/pc/pki-ldap/pki/issued/slapd.crt /etc/openldap/
+cp /home/pc/pki-ldap/pki/ca.crt /etc/openldap/
+```
+
+Y les cambiamos el propietario
+```bash
+chmod 440 /etc/openldap/{slapd.key,slapd.crt}
+chmod 444 /etc/openldap/ca.crt
+chown ldap:ldap /etc/openldap/{slapd.key,slapd.crt,ca.crt}
+```
+
+### Configuración de slapd.conf
 Ahora añadiremos las rutas de los certificados a `/etc/openldap/slapd.conf` con:
 ```bash
 cat << EOS >> /etc/openldap/slapd.conf
@@ -865,15 +864,76 @@ cat << EOS >> /etc/openldap/slapd.conf
 # TLS configuration 
 #######################################################################
 
-TLSCACertificateFile /etc/openldap/ldap-ca/ldap-ca.crt
-TLSCertificateFile /etc/openldap/slapd.crt
-TLSCertificateKeyFile /etc/openldap/slapd.key
+TLSCipherSuite DEFAULT
+TLSCipherSuite HIGH:MEDIUM:-SSLv2:-SSLv3
+TLSCACertificateFile    /etc/openldap/ca.crt
+TLSCertificateFile      /etc/openldap/slapd.crt
+TLSCertificateKeyFile   /etc/openldap/slapd.key
 EOS
 ```
 
+### Aplicación de las configuraciones
+Para aplicar las configuraciones realizamos
 ```bash
-olcTLSCertificateFile: /etc/openldap/slapd.crt
-olcTLSCertificateKeyFile: /etc/openldap/certs/slapd.key
+systemctl stop slapd
+rm -rf /etc/openldap/slapd.d/*
+sudo -u ldap slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d/
 ```
 
-Y reiniciaremos slapd para verificar que no hemos introducido ningún error con `systemctl restart slapd`
+### Modificación de la unit de systemd
+Editamos la unit de systemd con `systemctl edit slapd.service` y ponemos en la zona editable:
+```bash
+[Service]
+ExecStart=
+ExecStart=/usr/bin/slapd -u ldap -g ldap -h "ldaps:///"
+```
+como se muestra en la imagen a continuación:
+
+![Éxito en la autenticación contra freeradius](./img/systemd_override_ldaps.png)
+
+Finalmente ejecutaremos
+```bash
+systemctl restart slapd
+systemctl disable slapd
+systemctl enable slapd
+```
+
+### Configuración de ldap.conf (cliente)
+Debemos añadir un par de líneas en `/etc/openldap/ldap.conf` para que admita el certificado:
+
+```bash
+cat << EOS >> /etc/openldap/ldap.conf
+
+#######################################################################
+# TLS configuration 
+#######################################################################
+
+TLS_CACERT  /etc/openldap/ca.crt
+TLS_REQCERT allow
+EOS
+```
+
+además, también deberemos modificar la línea `URI`, comentando la que estaba previamente, y agregando debajo una nueva que sea:
+
+```bash
+URI     ldaps://192.168.1.200:636
+```
+
+### Testeo de la configuración
+Para testear la configuración es tan sencillo como hacer un:
+```bash
+ldapsearch -x -b "dc=tt1,dc=pri"
+```
+y ver que obtenemos respuesta.
+
+## Configuración en pfSense
+Una vez hemos configurado LDAPS, el servidor de autenticación por LDAP en pfSense que configuramos previamente ya no funciona, así que simplemente lo eliminaremos tal que:
+- System
+  - User Manager
+    - Authentication Servers
+      - Servidor OpenLDAP en srv1-arch -> Delete (🗑️)
+
+# Configuración de RADIUS a LDAPS
+Ahora nuestro servicio de autenticación por RADIUS ya no funciona, ya que no es capaz de conectar al servidor LDAP (sólo admite LDAPS). Para solucionarlo...
+
+TODO XABI
