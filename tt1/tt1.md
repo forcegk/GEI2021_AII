@@ -409,7 +409,7 @@ Para configurar un portal cautivo básico es realmente sencillo, debemos acceder
   - Captive Portal
     - Add
       - Zone name *clientes*
-      - Zone description *Portal cautivo para los clientes de nuestro supermercado*
+      - Zone description *Portal cautivo para los clientes de la red OPT1*
 
 Una vez creado el portal cutivo, nos lleva a la página de configuración del mismo, en el que vemos el siguiente aviso:
 
@@ -423,7 +423,7 @@ Como en nuestro caso ya tenemos habilitado el DHCP en la interfaz OPT1, solament
   - Idle timeout *60*
   - Hard timeout *240*
 
-Tenemos muchos más ajustes disponibles, como por ejemplo logos personalizados (donde podríamos poner el logo de nuestro supermercado... etc)
+Tenemos muchos más ajustes disponibles, como por ejemplo logos personalizados (donde podríamos poner el logo de nuestra empresa... etc)
 
 En Authentication
   - Authentication Method: por el momento pondremos *None, don't authenticate users*, ya que esta es una primera aproximación, y querremos verificar que funciona. Posteriormente usaremos RADIUS.
@@ -774,8 +774,8 @@ Para comprobar que la conexión al servidor RADIUS sea correcta, podemos dirigir
   - Authentication
     - Authentication Test
       - Authentication Server *Servidor FreeRADIUS en srv1-arch*
-      - Username *cliente*
-      - Password *cliente*
+      - Username *cliente1*
+      - Password *cliente1*
 
 Si todo ha salido correctamente, deberemos ver el correspondiente log en *srv1-arch*, y un mensaje indicando que la autenticación ha tenido éxito en la web UI de pfSense, como se muestra en la imagen a continuación.
 
@@ -934,6 +934,19 @@ Una vez hemos configurado LDAPS, el servidor de autenticación por LDAP en pfSen
       - Servidor OpenLDAP en srv1-arch -> Delete (🗑️)
 
 # Configuración de RADIUS a LDAPS
-Ahora nuestro servicio de autenticación por RADIUS ya no funciona, ya que no es capaz de conectar al servidor LDAP (sólo admite LDAPS). Para solucionarlo...
+Ahora nuestro servicio de autenticación por RADIUS ya no funciona, ya que no es capaz de conectar al servidor LDAP (sólo admite LDAPS). Para solucionarlo hay que configurar LDAPS en radius.
 
-TODO XABI
+## Cambio de configuración en srv1-arch
+Para esto vamos a `/etc/raddb/mods-available/ldap`:
+- Verificamos que el campo `server` = `ldaps://localhost`
+- En la sección `tls`:
+  - Descomentamos y modificamos el campo `ca_file` = `/etc/openldap/ca.crt`
+  - Justo encima del campo anterior, descomentamos y modificamos el campo `start_tls` = `no`
+
+Ahora, como se comenta en la sección de [configuración de la configuración de RADIUS en pfSense](###Comprobación-de-configuración-correcta), ejecutamos radius con `sudo -u radiusd radiusd -X` y podemos comprobar que funciona desde la interfaz en pfSense.
+
+## Activación del servicio
+Si todo ha salido bien y está funcionando, podemos parar el comando que ejecutamos en modo debug, y proceder a activar el servicio en srv1-arch con el comando
+```bash
+systemctl enable --now freeradius
+```
