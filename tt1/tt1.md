@@ -1,8 +1,5 @@
-# TT - AII 2021
-
-# pfSense
-## Instalación de pfSense 2.5.1
-### Configuración de la máquina virtual
+# Instalación de pfSense 2.5.1
+## Configuración de la máquina virtual
 Para este trabajo utilizaremos el hipervisor gratuito VirtualBox, en concreto en su última versión a fecha de escritura: `6.1.20`, con la misma revisión del Oracle VM Extension Pack.
 
 Comenzaremos con la creación de la máquina virtual e instalación en la misma de pfSense. Para ello:
@@ -52,7 +49,7 @@ Comenzaremos con la creación de la máquina virtual e instalación en la misma 
         - Tipo de adaptador *Intel PRO/1000 MT Desktop (82540EM)*
   - *Aceptar*
 
-### Instalación de pfSense
+## Instalación de pfSense
 Iniciamos la máquina y en seleccionar disco de inicio seleccionamos la ISO de pfSense que cargamos anteriormente.
 
 En los diálogos siguientes actuamos tal que:
@@ -68,7 +65,7 @@ Cuando haya terminado nos preguntará si queremos abrir un shell para realizar o
 
 Antes de que se inicie el sistema de nuevo, deberemos ir *rápidamente* en el menú de VirtualBox a Dispositivos -> Unidades ópticas -> Eliminar disco de la unidad virtual. Si no da tiempo, no hay mayores problemas, simplemente esperamos a que arranque, quitamos el DVD, y reiniciamos la máquina en Máquina -> Reiniciar.
 
-### Primer arranque de pfSense
+## Primer arranque de pfSense
 Al arrancar podremos ver una terminal de texto plano desde la que realizar tareas básicas. Esto es así ya que muchas de las tareas más complejas se realizarán desde la GUI web.
 
 Como podemos observar, tenemos dos interfaces, `WAN` y `LAN`. La primera es el adaptador a NAT de VirtualBox, y la segunda será la que usaremos como la boca a nuestra red interna. Los nombres em0 y em1 indican que son tarjetas de red que funcionan con el driver intel. Además, nos interesa tener una tercera interfaz, por la que crearemos el portal cautivo, llamada `OPT1`. Para esto, tendremos que configurar las interfaces:
@@ -86,6 +83,8 @@ De esta forma, las interfaces quedarán configuradas de forma estática tal que
 y veremos la siguiente salida:
 
 ![Salida por pantalla tras configurar las interfaces](./img/postassign.png)
+
+<div style="page-break-after: always;"></div>
 
 # Clientes ArchLinux
 Para configurar pfSense necesitaremos acceder desde LAN al servidor, por lo que debemos crear varias máquinas cliente. La distribución elegida es ArchLinux, la cual también usaremos para alojar el servidor LDAP.
@@ -284,6 +283,9 @@ En Arch Linux hay que configurar las cosas manualmente, así que tenemos que hab
 
 Tras esto reiniciamos, o cerramos sesión y volvemos a iniciarla para reiniciar X.
 
+<div style="page-break-after: always;"></div>
+
+# Configuración inicial de pfSense
 ## Configuración mediante la WebUI de pfSense desde pc1-arch
 Ahora vamos al Menú de Inicio -> Internet -> Firefox, lo abrimos, y nos dirigimos a la dirección 192.168.1.1, lo cual nos mostrará una pantalla como la siguiente:
 
@@ -371,6 +373,8 @@ Además, un par de configuraciones que teníamos pendientes son las siguientes:
     - Static DHCP [x] *Register DHCP static mappings in DNS forwarder*
     - Interfaces *Seleccionamos LAN y OPT1 con CTRL*
 
+<div style="page-break-after: always;"></div>
+
 # Clientes del Portal Cautivo
 Para crear los clientes importaremos dos veces pcBase-arch, como se especifica en [Importar srv1-arch](##Importar-srv1-arch).
 
@@ -396,12 +400,16 @@ Tras esto podremos confirmar que tenemos acceso a internet, como se ve en la ima
 
 ![Ping desde cliente1-arch a pfsense.org](./img/cliente_ping.png)
 
+<div style="page-break-after: always;"></div>
+
 ## Solución de problemas
 De todos modos, en este punto que ya estamos probando la conexión a internet, nos estamos dando cuenta de que va estúpidamente lenta al comienzo, como si el firewall se estuviese interponiendo, o algo estuviese previniendo las primeras conexiones funcionar bien, por lo que decidimos cambiar la interfaz principal de pfSense de *NAT* a *Adaptador Puente*, y bajamos las CPUs de la máquina virtual de 2 a 1, como ya aparecen actualizados en la [configuración de la máquina pfSense](###Configuración-de-la-máquina-virtual). También nos damos cuenta de que 4GB de RAM son innecesarios, y le bajamos a 1GB.
 
 Por otro lado, parecía que el DNS Forwarder que tambien hemos configurado previamente para descartar posibles "puntos lentos", no esté funcionando de forma adecuada, lo cual se puede solventar eliminando las cachés de systemd-resolved, con el comando `sudo systemd-resolve --flush-caches`. Tras esto y como estamos en un escenario de pruebas, vamos a dejar activo el DNS Forwarder, ya que parece que el rendimiento de la red mejora un montón con respecto al DNS server, y aún por encima nos permite direccionar los hosts por DHCP, que es prácticamente todo lo que necesitamos con respecto al DNS para este trabajo.
 
 Con todas estas configuraciones intentando corregir el error comentado anteriormente de la baja velocidad que se obtiene, parece que efectivamente se ha solucionado el problema.
+
+<div style="page-break-after: always;"></div>
 
 # Configuración del Portal Cautivo
 Para configurar un portal cautivo básico es realmente sencillo, debemos acceder a la interfaz web de pfSense y dirigirnos a:
@@ -452,6 +460,8 @@ A parte de poder efectivamente ver que funciona internet, si accedemos a
 podremos ver los usuarios logueados, como se ve en la imagen a continuación:
 
 ![Lista de usuarios autenticados en portal cautivo desde pfSense](./img/captive_portal_basic_2.png)
+
+<div style="page-break-after: always;"></div>
 
 # Autenticación por LDAP Directo
 Como estamos aplicando un enfoque incremental a lo largo de la realización de este trabajo, primero haremos que pfSense comunique directamente con el servidor openldap, para posteriormente introducir RADIUS de por medio. 
@@ -685,6 +695,8 @@ Podremos ver la sesión recién iniciada por cliente1.
 
 ![Usuario autenticado desde LDAP mostrándose en la lista de usuarios del portal cautivo](./img/captive_portal_ldap_session_2.png)
 
+<div style="page-break-after: always;"></div>
+
 # Autenticación mediante freeradius
 ## Instalación de freeradius en srv1-arch
 Primeramente deberemos instalar el paquete freeradius de los repositorios oficiales de Arch Linux con:
@@ -792,6 +804,9 @@ Ahora hemos de modificar como ya hicimos antes la autenticación del portal caut
         - Secondary authentication Server
           - *lo dejamos vacío*
     - 💾 *Save*
+
+
+<div style="page-break-after: always;"></div>
 
 # Configuración de LDAPS (LDAP over TLS)
 ## Instalación de Easy-RSA
@@ -933,6 +948,8 @@ Una vez hemos configurado LDAPS, el servidor de autenticación por LDAP en pfSen
     - Authentication Servers
       - Servidor OpenLDAP en srv1-arch -> Delete (🗑️)
 
+<div style="page-break-after: always;"></div>
+
 # Configuración de RADIUS a LDAPS
 Ahora nuestro servicio de autenticación por RADIUS ya no funciona, ya que no es capaz de conectar al servidor LDAP (sólo admite LDAPS). Para solucionarlo hay que configurar LDAPS en radius.
 
@@ -950,6 +967,8 @@ Si todo ha salido bien y está funcionando, podemos parar el comando que ejecuta
 ```bash
 systemctl enable --now freeradius
 ```
+
+<div style="page-break-after: always;"></div>
 
 # Separación de freeradius en srv2-arch
 ## Importación y configuración inicial de srv2-arch
@@ -1008,6 +1027,8 @@ Tras haber realizado todos los pasos previos, ahora configuraremos pfSense para 
     - 💾 *Save*
 
 Aquí podremos notar que el nombre sigue terminando en srv1-arch, a pesar de que ahora lo estamos alojando en otro servidor. Nos gustaría poder cambiarlo, pero desafortunadamente no se puede, así que dejamos el nombre.
+
+<div style="page-break-after: always;"></div>
 
 # Activación de freeradius para accounting
 ## Configuraciones en srv1-arch
@@ -1102,7 +1123,9 @@ Ahora hemos de activar el accounting para el portal cautivo en pfSense, para est
         - Idle time accounting [x] *Include idle time when users get disconnected due to idle timeout*
     - 💾 *Save*
 
-# Comprobación
+<div style="page-break-after: always;"></div>
+
+# Comprobación Final
 Ahora como podemos comprobar, FreeRADIUS hace accounting al servidor OpenLDAP, dejando una descripción en el campo `description`.
 
 Cliente previamente desconectado por Idle-Timeout:
