@@ -1,3 +1,101 @@
+# Indice
+
+<!-- TOC -->
+
+- [Planteamiento](#planteamiento)
+- [Instalación de pfSense 2.5.1](#instalación-de-pfsense-251)
+    - [Configuración de la máquina virtual](#configuración-de-la-máquina-virtual)
+    - [Instalación de pfSense](#instalación-de-pfsense)
+    - [Primer arranque de pfSense](#primer-arranque-de-pfsense)
+- [Clientes ArchLinux](#clientes-archlinux)
+    - [Instalación de pc1-arch](#instalación-de-pc1-arch)
+        - [Configuración de la máquina virtual](#configuración-de-la-máquina-virtual)
+        - [Instalación de ArchLinux](#instalación-de-archlinux)
+        - [Exportar pcBase-arch](#exportar-pcbase-arch)
+    - [Importar srv1-arch](#importar-srv1-arch)
+    - [Instalar un entorno de escritorio en pc1-arch](#instalar-un-entorno-de-escritorio-en-pc1-arch)
+- [Configuración inicial de pfSense](#configuración-inicial-de-pfsense)
+    - [Configuración mediante la WebUI de pfSense desde pc1-arch](#configuración-mediante-la-webui-de-pfsense-desde-pc1-arch)
+        - [Otras configuraciones](#otras-configuraciones)
+- [Clientes del Portal Cautivo](#clientes-del-portal-cautivo)
+    - [Solución de problemas](#solución-de-problemas)
+- [Configuración del Portal Cautivo](#configuración-del-portal-cautivo)
+    - [Configuración de DHCP lease time](#configuración-de-dhcp-lease-time)
+    - [Testeo del Portal Cautivo](#testeo-del-portal-cautivo)
+- [Autenticación por LDAP Directo](#autenticación-por-ldap-directo)
+    - [Instalación de OpenLDAP en srv1-arch](#instalación-de-openldap-en-srv1-arch)
+    - [Configuración de OpenLDAP en srv1-arch](#configuración-de-openldap-en-srv1-arch)
+        - [Configuración inicial](#configuración-inicial)
+            - [Configuración del cliente en el propio servidor para labores de administración](#configuración-del-cliente-en-el-propio-servidor-para-labores-de-administración)
+        - [Binding DHCP estático](#binding-dhcp-estático)
+        - [Creación de la entrada inicial](#creación-de-la-entrada-inicial)
+    - [Instalación de jxplorer en pc1-arch](#instalación-de-jxplorer-en-pc1-arch)
+    - [Inserción de usuarios desde jxplorer](#inserción-de-usuarios-desde-jxplorer)
+        - [Inserción del usuario Cliente 1](#inserción-del-usuario-cliente-1)
+        - [Inserción de otros usuarios en bulk](#inserción-de-otros-usuarios-en-bulk)
+    - [Configuración de LDAP como servidor de usuarios en pfSense](#configuración-de-ldap-como-servidor-de-usuarios-en-pfsense)
+    - [Configuración del Portal Cautivo para que autentique contra el servidor LDAP](#configuración-del-portal-cautivo-para-que-autentique-contra-el-servidor-ldap)
+        - [Probamos configuración en cliente1-arch](#probamos-configuración-en-cliente1-arch)
+- [Autenticación mediante freeradius](#autenticación-mediante-freeradius)
+    - [Instalación de freeradius en srv1-arch](#instalación-de-freeradius-en-srv1-arch)
+    - [Configuración de freeradius en srv1-arch](#configuración-de-freeradius-en-srv1-arch)
+        - [Configuración del mod ldap](#configuración-del-mod-ldap)
+        - [Activación del mod ldap](#activación-del-mod-ldap)
+        - [Creación de claves y certificados](#creación-de-claves-y-certificados)
+        - [Configuración de accesos de clientes](#configuración-de-accesos-de-clientes)
+        - [Chequeo de configuración](#chequeo-de-configuración)
+        - [Inicio de radiusd en modo debug](#inicio-de-radiusd-en-modo-debug)
+    - [Configuración de freeradius en pfSense](#configuración-de-freeradius-en-pfsense)
+        - [Comprobación de configuración correcta](#comprobación-de-configuración-correcta)
+    - [Configuración del Portal Cautivo para que autentique contra el servidor RADIUS](#configuración-del-portal-cautivo-para-que-autentique-contra-el-servidor-radius)
+- [Configuración de LDAPS LDAP over TLS](#configuración-de-ldaps-ldap-over-tls)
+    - [Instalación de Easy-RSA](#instalación-de-easy-rsa)
+    - [Creación de CA y certificados](#creación-de-ca-y-certificados)
+        - [Creación de CA](#creación-de-ca)
+        - [Creación de certificados para clientes](#creación-de-certificados-para-clientes)
+    - [Configuración de slapd](#configuración-de-slapd)
+        - [Copia de los certificados a /etc/openldap](#copia-de-los-certificados-a-etcopenldap)
+        - [Configuración de slapd.conf](#configuración-de-slapdconf)
+        - [Aplicación de las configuraciones](#aplicación-de-las-configuraciones)
+        - [Modificación de la unit de systemd](#modificación-de-la-unit-de-systemd)
+        - [Configuración de ldap.conf cliente](#configuración-de-ldapconf-cliente)
+        - [Testeo de la configuración](#testeo-de-la-configuración)
+    - [Configuración en pfSense](#configuración-en-pfsense)
+- [Configuración de RADIUS a LDAPS](#configuración-de-radius-a-ldaps)
+    - [Cambio de configuración en srv1-arch](#cambio-de-configuración-en-srv1-arch)
+    - [Activación del servicio](#activación-del-servicio)
+- [Separación de freeradius en srv2-arch](#separación-de-freeradius-en-srv2-arch)
+    - [Importación y configuración inicial de srv2-arch](#importación-y-configuración-inicial-de-srv2-arch)
+    - [Asignación de IP estática](#asignación-de-ip-estática)
+    - [Instalación de FreeRADIUS](#instalación-de-freeradius)
+    - [Desactivación y parada del servicio freeradius en srv1-arch](#desactivación-y-parada-del-servicio-freeradius-en-srv1-arch)
+    - [Modificación de freeradius en pfSense](#modificación-de-freeradius-en-pfsense)
+- [Activación de freeradius para accounting](#activación-de-freeradius-para-accounting)
+    - [Configuraciones en srv1-arch](#configuraciones-en-srv1-arch)
+        - [Configuración del servidor](#configuración-del-servidor)
+        - [Modificación del directorio](#modificación-del-directorio)
+    - [Configuraciones en srv2-arch](#configuraciones-en-srv2-arch)
+    - [Configuraciones en pfSense](#configuraciones-en-pfsense)
+- [Comprobación Final](#comprobación-final)
+- [Conclusiones](#conclusiones)
+- [Bibliografía](#bibliografía)
+
+<!-- /TOC -->
+
+<div style="page-break-after: always;"></div>
+
+# Planteamiento
+
+El objetivo de esta práctica es desplegar un portal cautivo siguiendo una estructura coherente, siendo esta una versión simplificada pero relativamente análoga a la que se podría realizar en un despliegue empresarial simple.
+
+En este despliegue, emplearemos diferentes tecnologías, principalmente las nombradas en el título (pfSense, FreeRADIUS y OpenLDAP), siendo los dos últimos servicios y toda la infraestructura de cliente desplegada sobre sistemas Arch Linux.
+
+Si bien, herramientas tan completas como pfSense nos permiten integrar en una única plataforma los tres componentes, al ser el objetivo de este trabajo tutelado el aprendizaje, se ha decidido implementar por separado en tres servidores distintos cada uno de estos servicios.
+
+La memoria es un tutorial de cómo realizar esta práctica, comenta los errores que han surgido y sus soluciones, y tiene un estilo incremental, esto es: añadimos capas de complejidad sobre las que tenemos que ya funcionan adecuadamente.
+
+<div style="page-break-after: always;"></div>
+
 # Instalación de pfSense 2.5.1
 ## Configuración de la máquina virtual
 Para este trabajo utilizaremos el hipervisor gratuito VirtualBox, en concreto en su última versión a fecha de escritura: `6.1.20`, con la misma revisión del Oracle VM Extension Pack.
@@ -1133,3 +1231,56 @@ Cliente previamente desconectado por Idle-Timeout:
 
 Cliente actualmente conectado:
 ![Campos de cliente3, que continúa conectado](./img/ldap_online.png)
+
+<div style="page-break-after: always;"></div>
+
+# Conclusiones
+El resultado ha sido positivo, consideramos que, si bien se han producido multitud de dificultades a la hora de completar todos los apartados que propusimos, estas han aportado mayor profundidad a nuestro conocimiento de la materia.
+
+Incluso hemos logrado desarrollar cierto pensamiento intuitivo, el cual, no es usual trabajando con herramientas tan específicas.
+
+Trabajar con Arch parece haber sido un acierto, no solo por su fantástico y ya conocido soporte en la Arch Wiki, sido debido a que en general, su elección ha simplificado mucho las cosas.
+
+Esta simpleza y minimalismo, así como el esquema rolling release de ARch Linux nos permite que tengamos soporte nativo de OpenSSL en OpenLDAP debido a estar en la última versión sin tener que recompilar (y de tener que haberlo hecho, hubiese sido mucho más sencillo que en Debian, gracias a la facilidad de edición de los PKGBUILD, y en general al sistema de compilación de Arch Linux, que es muy flexible).
+
+<div style="page-break-after: always;"></div>
+
+# Bibliografía
+[25/04/2021] https://docs.netgate.com/pfsense/en/latest/
+
+[25/04/2021] https://forum.netgate.com/topic/130826/no-internet-on-opt1 
+
+[25/04/2021] https://wiki.archlinux.org/index.php/OpenLDAP 
+
+[25/04/2021] https://wiki.archlinux.org/index.php/LDAP_authentication 
+
+[25/04/2021] https://ldapwiki.com/wiki/ 
+
+[25/04/2021] https://wiki.archlinux.org/index.php/LXQt 
+
+[25/04/2021] 
+https://wiki.archlinux.org/index.php/VirtualBox/Install_Arch_Linux_as_a_guest#Install_the_Guest_Additions 
+
+[25/04/2021] https://www.bellera.cat/josep/pfsense/dns_cs.html 
+
+[25/04/2021] https://wiki.archlinux.org/index.php/Systemd-networkd 
+
+[27/04/2021] https://wiki.freeradius.org/config/Configuration%20files 
+
+[27/04/2021] https://techexpert.tips/es/pfsense-es/pfsense-autenticacion-de-radio-mediante-freeradius/ 
+
+[27/04/2021] https://www.howtoforge.com/wikid-openldap-freeradius-howto 
+
+[27/04/2021] http://lists.freeradius.org/pipermail/freeradius-users/2017-September/088734.html 
+
+[28/04/2021] https://www.nasirhafeez.com/freeradius-with-ldaps-on-azure-ad-domain-services/ 
+
+[28/04/2021] https://www.linuxito.com/gnu-linux/nivel-alto/994-como-implementar-ldap-sobre-ssl-tls-con-openldap 
+
+[30/04/2021] 
+https://wiki.zimbra.com/wiki/Automation:_how_to_change_LDAP_attribute_for_all_users 
+
+[30/04/2021] https://serverfault.com/questions/224687/how-to-modify-add-a-new-objectclass-to-an-entry-in-openldap 
+
+[30/04/2021] 
+https://www.oreilly.com/library/view/radius/0596003226/re24.html#:~:text=An%20administrator%20may%20configure%20the,may%20remain%20active%20yet%20idle. 
