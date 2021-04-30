@@ -997,32 +997,116 @@ sudo systemctl disable --now freeradius
 ```
 
 ## Modificación de freeradius en pfSense
-Tras haber realizado todos los pasos previos, ahora configuraremos pfSense para que autentique contra el nuevo servidor FreeRADIUS, esto se realiza en:
+Tras haber realizado todos los pasos previos, ahora configuraremos pfSense para que autentique contra el nuevo servidor FreeRADIUS. Además como posteriormente vamos a añadir servicios de accounting, tambien lo activamos. Esto se realiza en:
+- Services
+  - Captive Portal
+    - Clientes -> Edit (✏️)
+      - Authentication
+        - RADIUS Server Settings
+          - Hostname or IP address *192.168.1.201*
+          - Services offered *Authentication and Accounting*
+    - 💾 *Save*
 
-# NOTAS VARIAS (XABI)
-/etc/raddb/sites-enabled/default -> buscar (primera coincidencia) `accounting {`, añadir una línea `ldap` al final de la sección para activar accounting en ldap. Descomentar tambien `ldap` en `post-auth {`
+Aquí podremos notar que el nombre sigue terminando en srv1-arch, a pesar de que ahora lo estamos alojando en otro servidor. Nos gustaría poder cambiarlo, pero desafortunadamente no se puede, así que dejamos el nombre.
 
-Cambiar mapeo en /etc/raddb/mods-enables/ldap -> buscar (primera coincidencia) `update {`.
+# Activación de freeradius para accounting
+## Configuraciones en srv1-arch
+### Configuración del servidor
+Para obtener los ficheros de schema, debemos tener instalado freeradius en el ordenador que hostea LDAP. Como en srv1-arch ya hemos usado previamente freeradius, ya tenemos los archivos en su sitio, y no tenemos que instalar nada. Copiamos los archivos con:
+```bash
+cp /usr/share/doc/freeradius/schemas/ldap/openldap/freeradius.schema /etc/openldap/schema/
+cp /usr/share/doc/freeradius/schemas/ldap/openldap/freeradius.ldif /etc/openldap/schema/
+```
 
-INFO---
-Control -> necesario para autenticación
-Reply -> iformación adicional, no impide la auth
--------
+Y editamos el fichero `/etc/openldap/slapd.conf` y añadimos al final de la "sección" de includes la línea:
+```bash
+include         /etc/openldap/schema/freeradius.schema
+```
 
-Cambiar auth and acc -> cambiar captive portal. Se buscan con:
-`find / | grep "radius\.schema"` y `find / | grep "radius\.ldif"`, y los copiamos a /etc/openldap/schemas
-
-Finalmente añadimos un include con la ruta del .schema que hemos copiado a /etc/openldap/slapd.conf
-
-
-Ejecutamos los siguientes comandos para poblar `/etc/openldap/slapd.d`
+Tras esto regeneramos la configuración como ya hemos hecho previamente con:
 ```bash
 rm -rf /etc/openldap/slapd.d/*
 sudo -u ldap slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d/
 ```
 
-# RESUMEN (XABI)
-Extendemos a todos los usuarios con radiusProfile
-Les añadimos Idle Time (por ejemplo)
-Recordar activar Interim en config de portal cautivo
-Info de acc en `/var/log/radius/radacct`
+Y reiniciamos el servicio con:
+```bash
+sudo systemctl restart slapd
+```
+
+### Modificación del directorio
+Ahora deberemos añadirles a los clientes del 1 al 100 la clase `radiusprofile` y ponerles un `radiusIdleTimeout` = 60. Para esto creamos el siguiente script llamado `genmodusers.sh`:
+
+```bash
+#!/bin/bash
+
+echo -n > modradusers.ldif
+
+for i in {1..100}; do
+  echo dn: cn=Cliente $i,ou=users,dc=tt1,dc=pri >> modradusers.ldif
+  echo changetype: modify >> modradusers.ldif
+  echo add: objectClass >> modradusers.ldif
+  echo objectClass: radiusprofile >> modradusers.ldif
+  echo "" >> modradusers.ldif
+done  
+
+for i in {1..100}; do
+  echo dn: cn=Cliente $i,ou=users,dc=tt1,dc=pri >> modradusers.ldif
+  echo changetype: modify >> modradusers.ldif
+  echo replace: radiusIdleTimeout >> modradusers.ldif
+  echo radiusIdleTimeout: 60 >> modradusers.ldif
+  echo "" >> modradusers.ldif
+done  
+```
+
+Y tras ejecutarlo con `bash genmodusers.sh`, conseguiremos el archivo `modradusers.ldif`, el cual deberemos enviar al servidor LDAP con
+```bash
+ldapmodify -x -D 'cn=root,dc=tt1,dc=pri' -W -f modradusers.ldif
+```
+
+## Configuraciones en srv2-arch
+Ahora hemos de realizar las modificaciones más importantes en la parte de FreeRADIUS:
+
+En `/etc/raddb/sites-enabled/default`:
+- Buscamos (primera coincidencia) `accounting {`:
+  - Añadimos en esa sección una línea que diga `ldap`.
+- Buscamos (primera coincidencia) `post-auth {`:
+  - Buscamos y descomentamos la línea que dice `ldap`.
+
+En `/etc/raddb/mods-available/ldap`:
+- Buscamos (primera coincidencia) `update {`:
+  - Añadimos en la sección de mapeo la línea
+    ```bash
+    reply:Idle-Timeout              := 'radiusIdleTimeout'
+    ```
+
+Y reiniciamos el servicio con
+```bash
+sudo systemctl restart freeradius
+```
+
+## Configuraciones en pfSense
+Ahora hemos de activar el accounting para el portal cautivo en pfSense, para esto desde la web UI:
+- Services
+  - Captive Portal
+    - Clientes -> Edit (✏️)
+      - Captive Portal Configuration
+        - Idle timeout (Minutes) *\*en blanco\**
+        - Hard timeout (Minutes) *240* (lo seguimos dejando en 240)
+      - Authentication
+        - Session timeout [x] *Use RADIUS Session-Timeout attributes*
+      - Accounting
+        - RADIUS [x] *Send RADIUS accounting packets*
+        - Accounting Server *Servidor FreeRADIUS en srv1-arch*
+        - Send accounting updates *Interim*
+        - Idle time accounting [x] *Include idle time when users get disconnected due to idle timeout*
+    - 💾 *Save*
+
+# Comprobación
+Ahora como podemos comprobar, FreeRADIUS hace accounting al servidor OpenLDAP, dejando una descripción en el campo `description`.
+
+Cliente previamente desconectado por Idle-Timeout:
+![Campos de cliente2, previamente desconectado por Idle-Timeout](./img/ldap_offline.png)
+
+Cliente actualmente conectado:
+![Campos de cliente3, que continúa conectado](./img/ldap_online.png)
