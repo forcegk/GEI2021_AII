@@ -1004,8 +1004,22 @@ Tras haber realizado todos los pasos previos, ahora configuraremos pfSense para 
 
 Cambiar mapeo en /etc/raddb/mods-enables/ldap -> buscar (primera coincidencia) `update {`.
 
+INFO---
 Control -> necesario para autenticación
 Reply -> iformación adicional, no impide la auth
+-------
+
+Cambiar auth and acc -> cambiar captive portal. Se buscan con:
+`find / | grep "radius\.schema"` y `find / | grep "radius\.ldif"`, y los copiamos a /etc/openldap/schemas
+
+Finalmente añadimos un include con la ruta del .schema que hemos copiado a /etc/openldap/slapd.conf
+
+
+Ejecutamos los siguientes comandos para poblar `/etc/openldap/slapd.d`
+```bash
+rm -rf /etc/openldap/slapd.d/*
+sudo -u ldap slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d/
+```
 
 # RESUMEN (XABI)
 Extendemos a todos los usuarios con radiusProfile
