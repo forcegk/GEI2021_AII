@@ -1,3 +1,3 @@
 # GEI2021_AII
-## Trabajos tutelados
-- [ ] TT1
+## Trabajo tutelado
+- [x] TT
