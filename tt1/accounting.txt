@@ -1,0 +1,44 @@
+vim /etc/raddb/sites-available/default
+En la ultima linea del bloque accounting añadimos: ldap
+En el bloque post-auth, descomentamos la linea que dice: ldap
+
+Con los comandos: 
+
+find / | grep "radius\.schema" 
+find / | grep "radius\.ldif"
+
+Encontraremos dos ficheros en la subcarpeta openldap. Debemos copiarlos a /etc/openldap/schemas
+
+vim /etc/openldap/slapd.d
+
+Añadimos un nuevo include
+
+include		/etc/openldap/schemas/radius.schema
+
+eliminamos los ficheros de configuración previos y regeneramos configuración
+
+rm -rf /etc/openldap/slapd.d/*
+sudo -u ldap slaptest -f /etc/openldap/slapd.conf -F /etc/openldap/slapd.d/
+
+Creamos el script (vease modify.sh) y lo ejecutamos
+Eso añadirá el objClass de radius a cada cliente y posteriormente seteará
+el parametro idleTimeout a 60 segundos. 
+
+Por último configuramos pfSense
+
+system -> usermanager -> authentication servers
+	Editamos radius
+		Services Offered: Authentication and Accounting
+	Save
+services -> captive portal
+	Editamos nuestro PC
+		Accounting:
+			radius [x]
+			
+			Apareceran nuevas opciones...
+			
+				Accounting Server: Radius
+				Send accounting updates: Interim
+				Idle timing account: [x]
+				
+	Save
