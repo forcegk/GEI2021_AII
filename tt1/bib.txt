@@ -20,3 +20,8 @@ FreeRADIUS + OpenLDAP = {
 28/04/2021
 https://www.nasirhafeez.com/freeradius-with-ldaps-on-azure-ad-domain-services/
 https://www.linuxito.com/gnu-linux/nivel-alto/994-como-implementar-ldap-sobre-ssl-tls-con-openldap
+
+30/04/2021
+https://wiki.zimbra.com/wiki/Automation:_how_to_change_LDAP_attribute_for_all_users
+https://serverfault.com/questions/224687/how-to-modify-add-a-new-objectclass-to-an-entry-in-openldap
+https://www.oreilly.com/library/view/radius/0596003226/re24.html#:~:text=An%20administrator%20may%20configure%20the,may%20remain%20active%20yet%20idle.
